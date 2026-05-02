@@ -323,7 +323,7 @@ Found a bug? Have a feature request?
 
 <div align="center">
 
-Made with ❤️ for the Roblox developer community
+Made with ❤️ by drakkiosauro
 
 ⭐ If this helped you, consider giving it a star!
 
