@@ -214,15 +214,6 @@ Game whitelist for global keys.
 
 ---
 
-## Disclaimer
-
-This project is intended **for legitimate use only**. You are responsible for:
-- Complying with Roblox Terms of Service
-- Respecting privacy laws (GDPR, LGPD, etc.)
-- Using the system ethically
-
----
-
 <p align="center">
   Made by <strong>drakkiosauro</strong><br>
   ⭐ Star the repo if you found it useful!
