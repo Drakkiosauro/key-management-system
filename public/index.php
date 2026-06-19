@@ -29,6 +29,7 @@ foreach ($daily as $d) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta name="csrf-token" content="<?= escapeHtml($_SESSION['csrf_token'] ?? '') ?>">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -240,11 +241,25 @@ foreach ($daily as $d) {
     </div>
 
     <script>
-        const API_URL = window.location.origin;
+        const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        function esc(str) {
+            if (!str) return '-';
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(str).replace(/[&<>"']/g, c => map[c]);
+        }
+
+        function trunc(str, len) {
+            if (!str) return '-';
+            return str.length > len ? esc(str.substring(0, len)) + '...' : esc(str);
+        }
 
         async function apiCall(endpoint, data = null) {
             const options = { method: data ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json' } };
-            if (data) options.body = JSON.stringify(data);
+            if (data) {
+                data.csrf_token = CSRF_TOKEN;
+                options.body = JSON.stringify(data);
+            }
             const res = await fetch(endpoint, options);
             return await res.json();
         }
@@ -255,16 +270,16 @@ foreach ($daily as $d) {
             if (data.success && data.keys.length) {
                 tbody.innerHTML = data.keys.map(k => `
                     <tr>
-                        <td style="font-family:monospace; font-size:0.8rem;">${k.code}</td>
-                        <td><span class="status-badge status-${k.status}">${k.status}</span></td>
-                        <td>${k.username || '-'}</td>
-                        <td class="break-all" style="font-family:monospace; font-size:0.7rem; max-width:150px;">${k.hwid ? k.hwid.substring(0, 16) + '...' : '-'}</td>
-                        <td>${k.ip || '-'}</td>
-                        <td>${k.executor || '-'}</td>
-                        <td>${k.expires_at ? k.expires_at.substring(0, 10) : '-'}</td>
+                        <td style="font-family:monospace; font-size:0.8rem;">${esc(k.code)}</td>
+                        <td><span class="status-badge status-${esc(k.status)}">${esc(k.status)}</span></td>
+                        <td>${esc(k.username)}</td>
+                        <td class="break-all" style="font-family:monospace; font-size:0.7rem; max-width:150px;">${trunc(k.hwid, 16)}</td>
+                        <td>${esc(k.ip)}</td>
+                        <td>${esc(k.executor)}</td>
+                        <td>${k.expires_at ? esc(k.expires_at.substring(0, 10)) : '-'}</td>
                         <td>
-                            ${k.status === 'used' ? `<button class="small-btn revoke-btn" data-key="${k.code}">Revoke</button>` : ''}
-                            <button class="small-btn delete-btn" data-key="${k.code}">Delete</button>
+                            ${k.status === 'used' ? `<button class="small-btn revoke-btn" data-key="${esc(k.code)}">Revoke</button>` : ''}
+                            <button class="small-btn delete-btn" data-key="${esc(k.code)}">Delete</button>
                         </td>
                     </tr>
                 `).join('');
@@ -299,13 +314,13 @@ foreach ($daily as $d) {
             if (data.success && data.logs.length) {
                 tbody.innerHTML = data.logs.map(l => `
                     <tr>
-                        <td style="font-family:monospace; font-size:0.8rem;">${l.key_code || '-'}</td>
-                        <td><span class="status-badge status-used">${l.action}</span></td>
-                        <td>${l.username || '-'}</td>
-                        <td class="break-all" style="font-family:monospace; font-size:0.7rem; max-width:150px;">${l.hwid ? l.hwid.substring(0, 16) + '...' : '-'}</td>
-                        <td>${l.ip || '-'}</td>
-                        <td>${l.executor || '-'}</td>
-                        <td>${new Date(l.timestamp).toLocaleString()}</td>
+                        <td style="font-family:monospace; font-size:0.8rem;">${esc(l.key_code)}</td>
+                        <td><span class="status-badge status-used">${esc(l.action)}</span></td>
+                        <td>${esc(l.username)}</td>
+                        <td class="break-all" style="font-family:monospace; font-size:0.7rem; max-width:150px;">${trunc(l.hwid, 16)}</td>
+                        <td>${esc(l.ip)}</td>
+                        <td>${esc(l.executor)}</td>
+                        <td>${l.timestamp ? new Date(l.timestamp).toLocaleString() : '-'}</td>
                     </tr>
                 `).join('');
             } else {
@@ -319,7 +334,7 @@ foreach ($daily as $d) {
             const data = await apiCall('api.php?action=generate', { quantity, days });
             if (data.success) {
                 document.getElementById('generated-keys').value = data.keys.join('\n');
-                alert(`${quantity} key(s) generated!`);
+                alert(quantity + ' key(s) generated!');
                 loadKeys();
             } else alert('Error: ' + data.message);
         });
@@ -332,7 +347,7 @@ foreach ($daily as $d) {
             const data = await apiCall('api.php?action=generate_global_key', { quantity, days, game_id });
             if (data.success) {
                 document.getElementById('generated-global-keys').value = data.keys.join('\n');
-                alert(`${quantity} global key(s) generated!`);
+                alert(quantity + ' global key(s) generated!');
                 loadGlobalKeys();
             } else alert('Error: ' + data.message);
         });
@@ -343,13 +358,13 @@ foreach ($daily as $d) {
             if (data.success && data.bans.length) {
                 tbody.innerHTML = data.bans.map(b => `
                     <tr>
-                        <td>${b.id}</td>
-                        <td>${b.user_id || '-'}</td>
-                        <td class="break-all" style="font-family:monospace; font-size:0.7rem; max-width:150px;">${b.hwid ? b.hwid.substring(0, 16) + '...' : '-'}</td>
-                        <td>${b.ip || '-'}</td>
-                        <td>${b.reason || '-'}</td>
-                        <td>${new Date(b.banned_at).toLocaleDateString()}</td>
-                        <td><button class="small-btn unban-btn" data-id="${b.id}">Unban</button></td>
+                        <td>${esc(b.id)}</td>
+                        <td>${esc(b.user_id)}</td>
+                        <td class="break-all" style="font-family:monospace; font-size:0.7rem; max-width:150px;">${trunc(b.hwid, 16)}</td>
+                        <td>${esc(b.ip)}</td>
+                        <td>${esc(b.reason)}</td>
+                        <td>${b.banned_at ? new Date(b.banned_at).toLocaleDateString() : '-'}</td>
+                        <td><button class="small-btn unban-btn" data-id="${esc(b.id)}">Unban</button></td>
                     </tr>
                 `).join('');
                 document.querySelectorAll('.unban-btn').forEach(btn => btn.addEventListener('click', async () => {
@@ -387,17 +402,16 @@ foreach ($daily as $d) {
             const tbody = document.getElementById('scripts-list');
             if (data.success && data.scripts.length) {
                 tbody.innerHTML = data.scripts.map(s => {
-                    const url = `${API_URL}/get_script.php?token=${data.token}&file=${s.name}`;
                     const activeText = s.active ? 'Deactivate' : 'Activate';
                     return `
                         <tr>
-                            <td style="font-family:monospace;">${s.name}</td>
+                            <td style="font-family:monospace;">${esc(s.name)}</td>
                             <td>${(s.size / 1024).toFixed(2)} KB</td>
                             <td>${new Date(s.modified * 1000).toLocaleDateString()}</td>
                             <td><span class="status-badge ${s.active ? 'status-used' : 'status-unused'}">${s.active ? 'ACTIVE' : 'INACTIVE'}</span></td>
                             <td>
-                                <button class="small-btn" data-file="${s.name}" onclick="toggleScript(this)">${activeText}</button>
-                                <button class="small-btn" data-file="${s.name}" onclick="deleteScript(this)">Delete</button>
+                                <button class="small-btn" data-file="${esc(s.name)}" onclick="toggleScript(this)">${activeText}</button>
+                                <button class="small-btn" data-file="${esc(s.name)}" onclick="deleteScript(this)">Delete</button>
                             </td>
                         </tr>
                     `;
@@ -417,7 +431,7 @@ foreach ($daily as $d) {
 
         function deleteScript(btn) {
             const file = btn.getAttribute('data-file');
-            if (confirm(`Delete ${file}?`)) {
+            if (confirm('Delete ' + file + '?')) {
                 apiCall('api.php?action=delete_script', { file }).then(res => {
                     if (res.success) { alert('Script deleted'); loadScripts(); }
                     else alert('Error: ' + res.message);
@@ -448,14 +462,14 @@ foreach ($daily as $d) {
             if (data.success && data.games.length) {
                 tbody.innerHTML = data.games.map(g => `
                     <tr>
-                        <td>${g.id}</td>
-                        <td>${g.game_id}</td>
-                        <td>${g.game_name}</td>
+                        <td>${esc(g.id)}</td>
+                        <td>${esc(g.game_id)}</td>
+                        <td>${esc(g.game_name)}</td>
                         <td>${g.active ? 'Yes' : 'No'}</td>
-                        <td><button class="small-btn" data-id="${g.id}" onclick="removeGame(this)">Remove</button></td>
+                        <td><button class="small-btn" data-id="${esc(g.id)}" onclick="removeGame(this)">Remove</button></td>
                     </tr>
                 `).join('');
-                select.innerHTML = '<option value="">Select a game</option>' + data.games.map(g => `<option value="${g.game_id}">${g.game_name}</option>`).join('');
+                select.innerHTML = '<option value="">Select a game</option>' + data.games.map(g => `<option value="${esc(g.game_id)}">${esc(g.game_name)}</option>`).join('');
             } else {
                 tbody.innerHTML = '<tr><td colspan="5">No games added.</td></tr>';
             }

@@ -21,12 +21,10 @@ if ($script_name === false) {
     die('Invalid filename');
 }
 
-if (!checkRateLimit($pdo, $ip, 20, 60)) {
+if (!checkAndIncrementRateLimit($pdo, $ip, 20, 60)) {
     http_response_code(429);
     die('Request limit exceeded');
 }
-
-incrementRateLimit($pdo, $ip);
 
 $is_roblox = false;
 
@@ -50,7 +48,7 @@ if (!$is_roblox) {
     die('Access denied');
 }
 
-if (!hash_equals(SECRET_TOKEN, $token)) {
+if (empty(SECRET_TOKEN) || !hash_equals(SECRET_TOKEN, $token)) {
     $stmt = $pdo->prepare("INSERT INTO logs (key_code, action, ip, game_name) VALUES (?, 'invalid_token', ?, ?)");
     $stmt->execute(['', $ip, substr($user_agent, 0, 255)]);
     http_response_code(403);

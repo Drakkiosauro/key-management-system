@@ -36,9 +36,18 @@ try {
 
 define('ADMIN_USER', getenv('ADMIN_USER'));
 define('ADMIN_PASS', getenv('ADMIN_PASS'));
-define('SECRET_TOKEN', getenv('SECRET_TOKEN'));
 define('DISCORD_WEBHOOK', getenv('DISCORD_WEBHOOK') ?: '');
-define('SCRIPT_PATH', dirname(__DIR__, 2) . '/' . (getenv('SCRIPT_PATH') ?: 'scripts/'));
+
+$secretToken = getenv('SECRET_TOKEN');
+if (empty($secretToken)) {
+    $secretToken = bin2hex(random_bytes(32));
+}
+define('SECRET_TOKEN', $secretToken);
+
+$scriptPath = getenv('SCRIPT_PATH') ?: 'scripts/';
+$scriptPath = str_replace('\\', '/', $scriptPath);
+$scriptPath = rtrim($scriptPath, '/') . '/';
+define('SCRIPT_PATH', dirname(__DIR__, 2) . '/' . $scriptPath);
 
 if (!session_id()) {
     session_start();

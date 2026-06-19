@@ -1,4 +1,28 @@
 <?php
+function checkAndIncrementRateLimit($pdo, $ip, $limit = 5, $timeWindow = 60) {
+    $pdo->beginTransaction();
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO rate_limits (ip, attempts, expires_at) 
+            VALUES (?, 1, DATE_ADD(NOW(), INTERVAL ? SECOND)) 
+            ON DUPLICATE KEY UPDATE 
+                attempts = IF(expires_at < NOW(), 1, attempts + 1),
+                expires_at = IF(expires_at < NOW(), DATE_ADD(NOW(), INTERVAL ? SECOND), expires_at)
+        ");
+        $stmt->execute([$ip, $timeWindow, $timeWindow]);
+        
+        $stmt = $pdo->prepare("SELECT attempts FROM rate_limits WHERE ip = ?");
+        $stmt->execute([$ip]);
+        $row = $stmt->fetch();
+        $pdo->commit();
+        
+        return $row && $row['attempts'] <= $limit;
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        return true;
+    }
+}
+
 function checkRateLimit($pdo, $ip, $limit = 5, $timeWindow = 60) {
     $stmt = $pdo->prepare("SELECT attempts FROM rate_limits WHERE ip = ? AND expires_at > NOW()");
     $stmt->execute([$ip]);

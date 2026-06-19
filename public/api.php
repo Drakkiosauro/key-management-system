@@ -17,6 +17,24 @@ if (empty($action)) {
     exit;
 }
 
+$rawBody = file_get_contents('php://input');
+$input = $rawBody ? json_decode($rawBody, true) : [];
+
+if (!is_array($input)) {
+    $input = [];
+}
+
+$csrfMutatingActions = ['generate', 'generate_global_key', 'generate_global_script_key', 'revoke', 'delete_key', 'ban', 'unban', 'upload_script', 'delete_script', 'toggle_script', 'rename_script', 'add_allowed_game', 'remove_allowed_game'];
+
+if (in_array($action, $csrfMutatingActions)) {
+    $csrfToken = $input['csrf_token'] ?? '';
+    if (!verifyCSRFToken($csrfToken)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Invalid CSRF token']);
+        exit;
+    }
+}
+
 if ($action === 'keys') {
     $stmt = $pdo->query("SELECT id, code, status, user_id, username, hwid, ip, executor, game_name, expires_at, is_global, allowed_game_id, allowed_script FROM `keys` ORDER BY id DESC LIMIT 500");
     $keys = $stmt->fetchAll();
@@ -26,12 +44,6 @@ if ($action === 'keys') {
     $logs = $stmt->fetchAll();
     echo json_encode(['success' => true, 'logs' => $logs]);
 } elseif ($action === 'generate') {
-    $input = json_decode(file_get_contents('php://input'), true);
-    if (!is_array($input)) {
-        echo json_encode(['success' => false, 'message' => 'Invalid input']);
-        exit;
-    }
-    
     $quantity = (int)($input['quantity'] ?? 1);
     $quantity = min(max($quantity, 1), 20);
     $days = (int)($input['days'] ?? 30);
@@ -51,12 +63,6 @@ if ($action === 'keys') {
         echo json_encode(['success' => false, 'message' => 'Error generating keys']);
     }
 } elseif ($action === 'generate_global_key') {
-    $input = json_decode(file_get_contents('php://input'), true);
-    if (!is_array($input)) {
-        echo json_encode(['success' => false, 'message' => 'Invalid input']);
-        exit;
-    }
-    
     $quantity = (int)($input['quantity'] ?? 1);
     $quantity = min(max($quantity, 1), 20);
     $days = (int)($input['days'] ?? 30);
@@ -82,12 +88,6 @@ if ($action === 'keys') {
         echo json_encode(['success' => false, 'message' => 'Error generating keys']);
     }
 } elseif ($action === 'generate_global_script_key') {
-    $input = json_decode(file_get_contents('php://input'), true);
-    if (!is_array($input)) {
-        echo json_encode(['success' => false, 'message' => 'Invalid input']);
-        exit;
-    }
-    
     $quantity = (int)($input['quantity'] ?? 1);
     $quantity = min(max($quantity, 1), 20);
     $days = (int)($input['days'] ?? 30);
@@ -113,7 +113,6 @@ if ($action === 'keys') {
         echo json_encode(['success' => false, 'message' => 'Error generating keys']);
     }
 } elseif ($action === 'revoke') {
-    $input = json_decode(file_get_contents('php://input'), true);
     $key = sanitizeInput($input['key'] ?? '');
     
     if (empty($key)) {
@@ -125,7 +124,6 @@ if ($action === 'keys') {
     $stmt->execute([$key]);
     echo json_encode(['success' => true]);
 } elseif ($action === 'delete_key') {
-    $input = json_decode(file_get_contents('php://input'), true);
     $key = sanitizeInput($input['key'] ?? '');
     
     if (empty($key)) {
@@ -154,12 +152,6 @@ if ($action === 'keys') {
     $bans = $stmt->fetchAll();
     echo json_encode(['success' => true, 'bans' => $bans]);
 } elseif ($action === 'ban') {
-    $input = json_decode(file_get_contents('php://input'), true);
-    if (!is_array($input)) {
-        echo json_encode(['success' => false, 'message' => 'Invalid input']);
-        exit;
-    }
-    
     $userId = sanitizeInput($input['userId'] ?? '');
     $hwid = sanitizeInput($input['hwid'] ?? '');
     $ip = sanitizeInput($input['ip'] ?? '');
@@ -174,7 +166,6 @@ if ($action === 'keys') {
     $stmt->execute([empty($userId) ? null : $userId, empty($hwid) ? null : $hwid, empty($ip) ? null : $ip, empty($reason) ? null : $reason]);
     echo json_encode(['success' => true]);
 } elseif ($action === 'unban') {
-    $input = json_decode(file_get_contents('php://input'), true);
     $id = (int)($input['id'] ?? 0);
     
     if ($id <= 0) {
@@ -190,7 +181,7 @@ if ($action === 'keys') {
     $scriptPath = SCRIPT_PATH;
     
     if (!is_dir($scriptPath)) {
-        echo json_encode(['success' => true, 'scripts' => [], 'token' => SECRET_TOKEN]);
+        echo json_encode(['success' => true, 'scripts' => []]);
         exit;
     }
     
@@ -207,14 +198,8 @@ if ($action === 'keys') {
         }
     }
     
-    echo json_encode(['success' => true, 'scripts' => $scripts, 'token' => SECRET_TOKEN]);
+    echo json_encode(['success' => true, 'scripts' => $scripts]);
 } elseif ($action === 'upload_script') {
-    $input = json_decode(file_get_contents('php://input'), true);
-    if (!is_array($input)) {
-        echo json_encode(['success' => false, 'message' => 'Invalid input']);
-        exit;
-    }
-    
     $name = sanitizeFileName($input['name'] ?? '');
     $content = $input['content'] ?? '';
     
@@ -242,7 +227,6 @@ if ($action === 'keys') {
     
     echo json_encode(['success' => true]);
 } elseif ($action === 'delete_script') {
-    $input = json_decode(file_get_contents('php://input'), true);
     $name = sanitizeFileName($input['file'] ?? '');
     
     if ($name === false) {
@@ -268,7 +252,6 @@ if ($action === 'keys') {
     
     echo json_encode(['success' => true]);
 } elseif ($action === 'toggle_script') {
-    $input = json_decode(file_get_contents('php://input'), true);
     $name = sanitizeFileName($input['file'] ?? '');
     
     if ($name === false) {
@@ -283,6 +266,13 @@ if ($action === 'keys') {
         exit;
     }
     
+    $realPath = realpath($scriptPath);
+    $realBase = realpath(SCRIPT_PATH);
+    if ($realPath === false || $realBase === false || strpos($realPath, $realBase) !== 0) {
+        echo json_encode(['success' => false, 'message' => 'Access denied']);
+        exit;
+    }
+    
     $statusFile = SCRIPT_PATH . 'active_' . $name . '.txt';
     
     if (file_exists($statusFile)) {
@@ -293,7 +283,6 @@ if ($action === 'keys') {
         echo json_encode(['success' => true, 'active' => true]);
     }
 } elseif ($action === 'get_script_content') {
-    $input = json_decode(file_get_contents('php://input'), true);
     $name = sanitizeFileName($input['file'] ?? '');
     
     if ($name === false) {
@@ -308,6 +297,13 @@ if ($action === 'keys') {
         exit;
     }
     
+    $realPath = realpath($scriptPath);
+    $realBase = realpath(SCRIPT_PATH);
+    if ($realPath === false || $realBase === false || strpos($realPath, $realBase) !== 0) {
+        echo json_encode(['success' => false, 'message' => 'Access denied']);
+        exit;
+    }
+    
     $content = file_get_contents($scriptPath);
     
     if ($content === false) {
@@ -317,7 +313,6 @@ if ($action === 'keys') {
     
     echo json_encode(['success' => true, 'content' => $content]);
 } elseif ($action === 'rename_script') {
-    $input = json_decode(file_get_contents('php://input'), true);
     $old_name = sanitizeFileName($input['old_name'] ?? '');
     $new_name = sanitizeFileName($input['new_name'] ?? '');
     
@@ -331,6 +326,14 @@ if ($action === 'keys') {
     
     if (!file_exists($old_path)) {
         echo json_encode(['success' => false, 'message' => 'File not found']);
+        exit;
+    }
+    
+    $realOld = realpath($old_path);
+    $realNew = realpath(dirname($new_path)) . '/' . basename($new_path);
+    $realBase = realpath(SCRIPT_PATH);
+    if ($realOld === false || $realBase === false || strpos($realOld, $realBase) !== 0) {
+        echo json_encode(['success' => false, 'message' => 'Access denied']);
         exit;
     }
     
@@ -350,7 +353,6 @@ if ($action === 'keys') {
         echo json_encode(['success' => false, 'message' => 'Rename failed']);
     }
 } elseif ($action === 'add_allowed_game') {
-    $input = json_decode(file_get_contents('php://input'), true);
     $game_id = sanitizeInput($input['game_id'] ?? '');
     $game_name = sanitizeInput($input['game_name'] ?? '');
     
@@ -367,7 +369,6 @@ if ($action === 'keys') {
     $games = $stmt->fetchAll();
     echo json_encode(['success' => true, 'games' => $games]);
 } elseif ($action === 'remove_allowed_game') {
-    $input = json_decode(file_get_contents('php://input'), true);
     $id = (int)($input['id'] ?? 0);
     
     if ($id <= 0) {

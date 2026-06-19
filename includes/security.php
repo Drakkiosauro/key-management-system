@@ -28,8 +28,13 @@ function validateRequest($pdo) {
 }
 
 function sanitizeInput($input) {
-    $trimmed = is_string($input) ? trim($input) : $input;
-    return htmlspecialchars(strip_tags($trimmed), ENT_QUOTES, 'UTF-8');
+    if (!is_string($input)) return $input;
+    return trim($input);
+}
+
+function escapeHtml($input) {
+    if (!is_string($input)) return $input;
+    return htmlspecialchars($input, ENT_QUOTES, 'UTF-8');
 }
 
 function sanitizeFileName($filename) {

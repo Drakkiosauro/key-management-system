@@ -77,15 +77,12 @@ $voiceChat = (int)($input['voiceChat'] ?? 0);
 $deviceType = sanitizeInput($input['deviceType'] ?? '');
 $executor = sanitizeInput($input['executor'] ?? '');
 $hwid = sanitizeInput($input['hwid'] ?? '');
-$ip = $input['ip'] ?? $_SERVER['REMOTE_ADDR'];
+$ip = $_SERVER['REMOTE_ADDR'];
+$reportedIp = isset($input['ip']) ? sanitizeInput($input['ip']) : '';
 $placeId = sanitizeInput($input['placeId'] ?? '');
 $jobId = sanitizeInput($input['jobId'] ?? '');
 $gameName = sanitizeInput($input['gameName'] ?? '');
 $scriptName = sanitizeInput($input['scriptName'] ?? '');
-
-if (!validateIP($ip)) {
-    $ip = $_SERVER['REMOTE_ADDR'];
-}
 
 if (empty($key) || empty($userId) || empty($hwid)) {
     http_response_code(400);
@@ -99,13 +96,11 @@ if (!validateHWID($hwid)) {
     exit;
 }
 
-if (!checkRateLimit($pdo, $ip, 5, 60)) {
+if (!checkAndIncrementRateLimit($pdo, $ip, 5, 60)) {
     http_response_code(429);
     echo json_encode(['success' => false, 'message' => 'Rate limit exceeded']);
     exit;
 }
-
-incrementRateLimit($pdo, $ip);
 
 $userData = compact('userId', 'username', 'displayName', 'accountAge', 'isPremium', 'voiceChat', 'deviceType', 'executor', 'hwid', 'ip', 'placeId', 'jobId', 'gameName');
 

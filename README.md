@@ -1,106 +1,74 @@
-# 🔐 Roblox Key Management System
+# Roblox Key Management System
 
-> A **secure, scalable, and production-oriented** key management system designed for Roblox script distribution — built with a strong focus on protection against abuse, fraud, and unauthorized access.
-
----
+> A **secure, production-ready** key management system for Roblox script distribution, with built-in protection against abuse, fraud, and unauthorized access.
 
 <p align="center">
   <img src="https://img.shields.io/badge/PHP-7.4+-blue?style=for-the-badge&logo=php">
   <img src="https://img.shields.io/badge/MySQL-5.7+-orange?style=for-the-badge&logo=mysql">
-  <img src="https://img.shields.io/badge/Security-High-brightgreen?style=for-the-badge&logo=shield">
+  <img src="https://img.shields.io/badge/Security-Critical-brightgreen?style=for-the-badge&logo=shield">
   <img src="https://img.shields.io/badge/License-MIT-lightgrey?style=for-the-badge">
 </p>
 
 ---
 
-## ✨ Overview
+## Security Changelog — June 2026
 
-This project provides a **complete key management ecosystem** for Roblox scripts, including:
+### Critical Fixes Applied
 
-* Secure key validation
-* Advanced user tracking
-* Real-time admin control
-* Built-in protection layers
+| Vulnerability | Severity | Fix |
+| :--- | :---: | :--- |
+| `SECRET_TOKEN` exposed via `list_scripts` API  | 🔴 Critical | Token removed from JSON response. Admin panel now uses session-authenticated endpoints. |
+| Client-controlled IP in `verify.php` | 🔴 Critical | `$ip` now exclusively comes from `$_SERVER['REMOTE_ADDR']`. Client-provided IP is logged separately as `reportedIp`. |
+| No CSRF protection anywhere | 🔴 Critical | `verifyCSRFToken()` enforced on all mutating API actions. Token injected via `<meta>` tag and auto-sent on every POST request. |
+| Stored XSS in admin panel | 🔴 Critical | `esc()` JS function escapes `&<>"'` before DOM insertion. All template literals sanitized. |
 
-Designed for developers who want **control, visibility, and security** when distributing scripts.
+### Medium Fixes Applied
 
----
-
-## 🚀 Features
-
-### 🔑 Key Management
-
-* Generate unlimited keys with expiration control
-* Support for global and script-specific keys
-* HWID-based locking system
-* Real-time revocation and tracking
-
-### 👤 User Control
-
-* Ban system (User ID, HWID, IP)
-* Temporary & permanent bans
-* Full ban history tracking
-
-### 📊 Admin Dashboard
-
-* Clean and responsive interface
-* Real-time analytics
-* Activity logs with charts
-* One-click script control
-
-### 🛡️ Security Layer
-
-* Rate limiting (anti-bruteforce)
-* CSRF protection
-* SQL injection prevention
-* Path traversal protection
-* Input validation & sanitization
-* Secure token comparison (`hash_equals`)
-
-### 🔗 Integrations
-
-* Discord webhook alerts
-* Script delivery system
-* Executor detection
-* HWID & IP tracking
+| Vulnerability | Severity | Fix |
+| :--- | :---: | :--- |
+| Empty `SECRET_TOKEN` when env var unset | 🟠 Medium | Auto-generated 64-char token via `random_bytes(32)` if env var is missing. |
+| Race condition in rate limiting | 🟠 Medium | `checkAndIncrementRateLimit()` created as atomic MySQL transaction, eliminating TOCTOU. |
+| `sanitizeInput()` corrupting stored data | 🟡 Low | Removed `strip_tags()` and `htmlspecialchars()`. New `escapeHtml()` for HTML output only. |
+| Missing path traversal checks on script ops | 🟡 Low | `realpath()` validation added to `toggle_script`, `get_script_content`, and `rename_script`. |
 
 ---
 
-## ⚠️ Important Security Notice
+## Features
 
-> 🚨 **Before using this in a real-world or production environment:**
+### Key Management
+- Unlimited key generation with expiration control
+- Global and script-specific keys
+- HWID-based locking
+- Real-time revocation and tracking
 
-This project is provided as a **strong foundation**, but:
+### User Control
+- Ban system (User ID, HWID, IP)
+- Temporary & permanent bans
+- Full ban history
 
-* You should **review the entire codebase**
-* Audit all **security-critical components**
-* Replace or improve:
+### Admin Dashboard
+- Clean dark-mode interface
+- Real-time analytics with Chart.js
+- Activity logs
+- Script management (upload, toggle, delete)
 
-  * Authentication logic
-  * Key storage methods
-  * Rate limiting strategy
-  * Input validation layers
-
-> 🔐 **Security is not “set and forget”** — especially for systems handling keys and user data.
-
-Failure to review and adapt the system may lead to:
-
-* Key leaks
-* Unauthorized access
-* Abuse or bypasses
+### Integrations
+- Discord webhook alerts
+- Script delivery system
+- Roblox executor detection
+- HWID & IP tracking
 
 ---
 
-## ⚡ Quick Start
+## Quick Start
 
 ### Requirements
 
-* PHP 7.4+
-* MySQL 5.7+
-* Apache (mod_rewrite enabled)
-* cURL extension
-
----
+- PHP 7.4+
+- MySQL 5.7+
+- Apache (mod_rewrite) or Nginx
+- PHP cURL extension
+- PHP PDO MySQL extension
 
 ### Installation
 
@@ -108,18 +76,19 @@ Failure to review and adapt the system may lead to:
 git clone https://github.com/your-username/roblox-key-system.git
 cd roblox-key-system
 
+# Configure environment variables
 cp .env.example .env
 nano .env
 
+# Import database schema
 mysql -u root -p your_database < sql/schema.sql
 
+# Set permissions
 chmod 755 public logs scripts
-chmod 644 public/*.php
+chmod 644 public/*.php includes/*.php config/*.php
 ```
 
----
-
-### ⚙️ Environment Configuration
+### Environment Configuration
 
 ```ini
 DB_HOST=localhost
@@ -129,14 +98,15 @@ DB_PASS=strong_password
 
 ADMIN_USER=admin
 ADMIN_PASS=your_admin_password
-SECRET_TOKEN=generate_random_token_here
 
-DISCORD_WEBHOOK=https://discordapp.com/api/webhooks/YOUR_ID/YOUR_TOKEN
+# Optional: if not set, a random 64-char token is auto-generated
+SECRET_TOKEN=your_random_token_here
+
+# Discord webhook for alerts (optional)
+DISCORD_WEBHOOK=https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN
 ```
 
----
-
-### 🔐 Admin Panel
+### Admin Panel
 
 ```
 https://your-domain.com/public/login.php
@@ -144,171 +114,116 @@ https://your-domain.com/public/login.php
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
-roblox-key-system/
+key-management-system/
 ├── public/
-│   ├── index.php
-│   ├── login.php
-│   ├── api.php
-│   ├── verify.php
-│   ├── get_script.php
-│   └── .htaccess
+│   ├── index.php              # Admin dashboard
+│   ├── login.php              # Login page
+│   ├── api.php                # Admin API
+│   ├── verify.php             # Key verification (executors)
+│   └── get_script.php         # Script delivery (executors)
 ├── config/
-│   └── config.php
+│   └── config.php             # Bootstrap & configuration
 ├── includes/
-│   ├── security.php
-│   └── rate_limit.php
+│   ├── security.php           # Security functions
+│   └── rate_limit.php         # Rate limiting
 ├── sql/
-│   └── schema.sql
-├── scripts/
-├── logs/
-└── .env.example
+│   └── schema.sql             # MySQL schema
+├── scripts/                   # .lua script files
+├── logs/                      # PHP error logs
+├── .env.example               # Environment template
+├── LICENSE
+└── README.md
 ```
 
 ---
 
-## 🔌 API Usage
+## API Usage
 
-### Verify Key
+### Verify Key (from Executor)
 
 ```lua
 local response = game:HttpPost(
     "https://your-domain.com/public/verify.php",
-    HttpService:JSONEncode(keyData)
+    HttpService:JSONEncode({
+        key = "YOUR_KEY",
+        userId = "123456789",
+        username = "User",
+        displayName = "User",
+        hwid = "YOUR_HWID"
+    })
 )
 ```
 
----
-
-### Get Script
+### Get Script (from Executor)
 
 ```lua
 local script = game:HttpGet(
-    "https://your-domain.com/public/get_script.php?token=SECRET_TOKEN&file=my_script.lua"
+    "https://your-domain.com/public/get_script.php?token=YOUR_TOKEN&file=my_script.lua"
 )
 loadstring(script)()
 ```
 
 ---
 
-## 🔐 Security Breakdown
+## Security Stack
 
-| Feature               | Purpose                    |
-| --------------------- | -------------------------- |
-| Environment Variables | Keeps secrets out of code  |
-| Prepared Statements   | Prevents SQL injection     |
-| Rate Limiting         | Blocks abuse attempts      |
-| CSRF Tokens           | Prevents request forgery   |
-| Input Sanitization    | Avoids malicious input     |
-| Path Validation       | Stops file access exploits |
-| Secure Comparison     | Prevents timing attacks    |
+| Layer | Protection |
+| :--- | :--- |
+| Environment | All secrets via env vars, zero hardcoded credentials |
+| Database | PDO prepared statements with `EMULATE_PREPARES=false` |
+| Session | `use_strict_mode`, HttpOnly cookies, SameSite Strict |
+| Rate Limit | Atomic MySQL transactions prevent race conditions |
+| CSRF | Per-session token validated on every mutating action |
+| XSS | HTML escaping in JS (`esc()`) + PHP (`escapeHtml()`) |
+| Files | `sanitizeFileName()` regex + `realpath()` path validation |
+| Timing | `hash_equals()` for all token/comparison operations |
+| Input | `sanitizeInput()` trim + prepared statements |
+| Audit | Full logging of all suspicious actions |
 
 ---
 
-## 📊 Database Overview
+## Database Overview
 
 ### `keys`
-
-Stores all key data and usage tracking
+Key data, status, HWID/User binding, and expiration control.
 
 ### `logs`
-
-Full audit trail of activity
+Full audit trail of all system activity.
 
 ### `banned_users`
-
-User restriction system
+User restriction system by ID, HWID, or IP.
 
 ### `rate_limits`
-
-Request throttling system
+Request throttling with automatic expiration.
 
 ### `allowed_games`
-
-Whitelist for game access
-
----
-
-## ⚙️ Configuration Options
-
-### Key Types
-
-**Normal Keys**
-
-* Bound to user + device
-* Expirable
-
-**Global Keys**
-
-* Multi-game support
-* User-independent
-
-**Script Keys**
-
-* Linked to specific scripts
-* Controlled distribution
+Game whitelist for global keys.
 
 ---
 
-## 🚧 Deployment
+## Key Types
 
-### Apache
-
-```apache
-DocumentRoot /var/www/your-site/public
-```
-
----
-
-### Nginx
-
-```nginx
-root /var/www/your-site/public;
-```
+| Type | Behavior |
+| :--- | :--- |
+| **Normal** | Bound to the first user + HWID that activates it |
+| **Global** | Multi-game, linked to a specific `game_id` |
+| **Script** | Linked to a specific `.lua` script |
 
 ---
 
-## 🧹 Maintenance
+## Disclaimer
 
-### Backup
-
-```bash
-mysqldump -u user -p database > backup.sql
-```
-
----
-
-### Cleanup Logs
-
-```php
-cleanupOldLogs($pdo, 90);
-```
-
----
-
-## ⚖️ Disclaimer
-
-This project is intended for **legitimate use only**.
-
-You are responsible for:
-
-* Following Roblox Terms of Service
-* Respecting privacy laws
-* Using the system ethically
-
----
-
-## 🤝 Contributing
-
-* Open issues for bugs
-* Suggest improvements
-* Submit pull requests
+This project is intended **for legitimate use only**. You are responsible for:
+- Complying with Roblox Terms of Service
+- Respecting privacy laws (GDPR, LGPD, etc.)
+- Using the system ethically
 
 ---
 
 <p align="center">
-  Made with ❤️ by <strong>drakkiosauro</strong><br>
+  Made by <strong>drakkiosauro</strong><br>
   ⭐ Star the repo if you found it useful!
 </p>
